@@ -356,7 +356,7 @@ void Main() {
 			if (Scene::Time() - GetLastClick >= 0.1 && MouseL.down()) {
 				GetLastClick = Scene::Time();
 				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 180.0 && MouseY <= 260.0) { Situation = 2; PLAYS = 1; BACKETS = 1; }
-				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 290.0 && MouseY <= 370.0) { Situation = 2; PLAYS = 10; BACKETS = 20; }
+				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 290.0 && MouseY <= 370.0) { Situation = 2; PLAYS = 10; BACKETS = 10; }
 				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 400.0 && MouseY <= 480.0) { Situation = 2; PLAYS = 100; BACKETS = 20; }
 				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 180.0 && MouseY <= 260.0) { Situation = 2; PLAYS = 1000; BACKETS = 50; }
 				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 290.0 && MouseY <= 370.0) { Situation = 2; PLAYS = 20000; BACKETS = 100; }
