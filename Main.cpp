@@ -286,7 +286,7 @@ pair<double, double> dfs(int pos, int rems) {
 
 void Main() {
 	// 背景を水色にする
-	// srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL));
 	Scene::SetBackground(ColorF(0.0, 0.0, 0.1));
 
 	// フォントを用意
