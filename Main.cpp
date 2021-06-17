@@ -71,10 +71,18 @@ void Reset() {
 	for (int i = 0; i < 8; i++) {
 		for (int j = 0; j < 8; j++) CurrentState.c[i][j] = 0;
 	}
-	Update(CurrentState, 3, 3, 1);
-	Update(CurrentState, 3, 4, 2);
-	Update(CurrentState, 4, 3, 2);
-	Update(CurrentState, 4, 4, 1);
+	if (Sente == 1) {
+		Update(CurrentState, 3, 3, 2);
+		Update(CurrentState, 3, 4, 1);
+		Update(CurrentState, 4, 3, 1);
+		Update(CurrentState, 4, 4, 2);
+	}
+	if (Sente == 2) {
+		Update(CurrentState, 3, 3, 1);
+		Update(CurrentState, 3, 4, 2);
+		Update(CurrentState, 4, 3, 2);
+		Update(CurrentState, 4, 4, 1);
+	}
 	for (int i = 0; i < (1 << 13); i++) {
 		for (int j = 0; j < 64; j++) RandX[i][j] = j;
 		for (int j = 0; j < 640; j++) swap(RandX[i][rand() % 64], RandX[i][rand() % 64]);
