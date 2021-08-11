@@ -788,20 +788,32 @@ void Main() {
 								tuple<int, int, int> res2 = dfs3(CurrentState, -1, 2);
 								if (AlphaBeta < ALPHA) { mx = get<1>(res2); my = get<2>(res2); }
 							}
-							Moves(CurrentState, 2, mx, my);
-							Win_Rate = 0.0;
-							Next_Move = 1; Ti = 0;
-							preX = mx; preY = my;
+							if (mx == -1 && my == -1) {
+								Win_Rate = 0.0;
+								Next_Move = 1; Ti = 0; Consecutive += 1;
+							}
+							else {
+								Moves(CurrentState, 2, mx, my);
+								Win_Rate = 0.0;
+								Next_Move = 1; Ti = 0;
+								preX = mx; preY = my;
+							}
 						}
 					}
 					else if (get<0>(res) == -1) {
 						AlphaBeta = 0;
 						tuple<int, int, int> res2 = dfs3(CurrentState, -1, 2);
 						if (AlphaBeta < ALPHA) {
-							Moves(CurrentState, 2, get<1>(res2), get<2>(res2));
-							Win_Rate = 1.0;
-							Next_Move = 1; Ti = 0;
-							preX = get<1>(res2); preY = get<2>(res2);
+							if (get<1>(res2) == -1 && get<2>(res2) == -1) {
+								Win_Rate = 1.0;
+								Next_Move = 1; Ti = 0; Consecutive += 1;
+							}
+							else{
+								Moves(CurrentState, 2, get<1>(res2), get<2>(res2));
+								Win_Rate = 1.0;
+								Next_Move = 1; Ti = 0;
+								preX = get<1>(res2); preY = get<2>(res2);
+							}
 						}
 					}
 				}
