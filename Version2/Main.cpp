@@ -539,7 +539,7 @@ void Main() {
 			Rect(200, 360, 400, 80).draw(Color(255, 255, col1[1]));
 
 			font80(U"Othello 869120").draw(100, 45);
-			font30(U"～モンテカルロ木探索によるオセロ対戦～").draw(120, 150);
+			font30(U"～モンテカルロ木探索・深層学習によるオセロ対戦～").draw(45, 150);
 			font40(U"先手を選ぶ").draw(300, 262, Palette::Black);
 			font40(U"後手を選ぶ").draw(300, 372, Palette::Black);
 			font30(U"クリックしてゲームを始める").draw(200, 490, ColorF(Periodic::Sine0_1(1.5s)));
