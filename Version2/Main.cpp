@@ -9,10 +9,14 @@ using namespace std;
 
 struct State {
 	char c[8][8];
-	int bit1[8], bit2[8], bit3[15], bit4[15];
+	unsigned short bit1[8], bit2[8], bit3[15], bit4[15];
 };
 
 // 機械学習の変数
+const int STAGE1 = 128;
+const int STAGE2 = 24;
+const int STAGE3 = 8;
+const int STAGE4 = 2;
 double d1[150][150], e1[150], aa1[150], aa0[150];
 double d2[150][150], e2[150], aa2[150];
 double d3[150][150], e3[150], aa3[150];
@@ -31,7 +35,7 @@ int PLAYS = 1000;
 int BACKETS = 50;
 const double TEISUU_A = 0.3;
 const double TEISUU_B = -0.014;
-const int MAX_STATES = 4200000;
+const int MAX_STATES = 9600000;
 int col1[4] = { 175, 175, 175, 100 };
 int col4[8] = { 40, 40, 40, 40, 40, 40, 40, 40 };
 int col2[10][10];
@@ -48,8 +52,8 @@ int StateCnt = 0;
 int TansakuCnt = 0;
 int AlphaBeta = 0;
 State CandState[MAX_STATES];
-short CandTurn[MAX_STATES]; double win[MAX_STATES], searched[MAX_STATES], tesuu[MAX_STATES];
-short deg[MAX_STATES], nex_zahyou[MAX_STATES][30]; int nexnum[MAX_STATES][30];
+short CandTurn[MAX_STATES]; float win[MAX_STATES], searched[MAX_STATES], tesuu[MAX_STATES];
+short deg[MAX_STATES]; char nex_zahyou[MAX_STATES][24]; int nexnum[MAX_STATES];
 
 int dx[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
 int dy[8] = { 1, 1, 0, -1, -1, -1, 0, 1 };
@@ -78,34 +82,35 @@ double hantei(State& SS, int turn) {
 	}
 
 	// 1 層目
-	for (int i = 0; i < 128; i++) {
-		for (int j = 0; j < 75; j++) aa1[j] += aa0[i] * d1[i][j];
+	for (int i = 0; i < STAGE1; i++) {
+		if (aa0[i] == 0) continue;
+		for (int j = 0; j < STAGE2; j++) aa1[j] += d1[i][j];
 	}
-	for (int i = 0; i < 75; i++) {
+	for (int i = 0; i < STAGE2; i++) {
 		aa1[i] += e1[i];
 		aa1[i] = tanh(aa1[i]);
 		if (rand() % 100 < 10) aa1[i] = 0;
 	}
 
 	// 2 層目
-	for (int i = 0; i < 75; i++) {
-		for (int j = 0; j < 30; j++) aa2[j] += aa1[i] * d2[i][j];
+	for (int i = 0; i < STAGE2; i++) {
+		for (int j = 0; j < STAGE3; j++) aa2[j] += aa1[i] * d2[i][j];
 	}
-	for (int i = 0; i < 30; i++) {
+	for (int i = 0; i < STAGE3; i++) {
 		aa2[i] += e2[i];
 		aa2[i] = tanh(aa2[i]);
 	}
 
 	// 3 層目
 	double S = 0;
-	for (int i = 0; i < 30; i++) {
-		for (int j = 0; j < 2; j++) aa3[j] += aa2[i] * d3[i][j];
+	for (int i = 0; i < STAGE3; i++) {
+		for (int j = 0; j < STAGE4; j++) aa3[j] += aa2[i] * d3[i][j];
 	}
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < STAGE4; i++) {
 		aa3[i] += e3[i];
 		S += exp(aa3[i]);
 	}
-	for (int i = 0; i < 2; i++) aa3[i] = exp(aa3[i]) / S;
+	for (int i = 0; i < STAGE4; i++) aa3[i] = exp(aa3[i]) / S;
 
 	// 勝率決定
 	return aa3[0];
@@ -363,10 +368,7 @@ double eval(int score, int rem) {
 }
 
 void Initialize(State& SS, int pos, int turn) {
-	if (pos != -1) {
-		nexnum[pos][deg[pos]] = StateCnt;
-		deg[pos] += 1;
-	}
+	if (pos != -1) deg[pos] += 1;
 
 	CandState[StateCnt] = SS;
 	CandTurn[StateCnt] = turn;
@@ -393,7 +395,7 @@ void Initialize(State& SS, int pos, int turn) {
 pair<double, double> Gen_Random(int pos, int rems) {
 	double a1 = 0.0, a2 = 0.0;
 	for (int i = 0; i < deg[pos]; i++) {
-		int idx = nexnum[pos][i];
+		int idx = nexnum[pos] + i;
 		// int FinalPoint = Random_Playout(CandState[idx], CandTurn[idx]);
 		double FinalScore = hantei(CandState[idx], CandTurn[idx]);
 		if (CandTurn[idx] == 2) FinalScore = 1.0 - FinalScore;
@@ -409,7 +411,7 @@ pair<double, double> dfs(int pos, int rems) {
 	if (deg[pos] != 0) {
 		int maxid = -1; double maxn = -1e5;
 		for (int i = 0; i < deg[pos]; i++) {
-			int idx = nexnum[pos][i];
+			int idx = nexnum[pos] + i;
 			double TEISUU = TEISUU_A - TEISUU_B * (Score1 + Score2);
 			double eval1 = (1.0 * win[idx] / searched[idx]); if (CandTurn[pos] == 2) eval1 = 1.0 - eval1;
 			double eval2 = sqrt(1.0 * log(1.0 * searched[pos]) / searched[idx]);
@@ -419,7 +421,7 @@ pair<double, double> dfs(int pos, int rems) {
 				maxid = i;
 			}
 		}
-		pair<double, double> AA = dfs(nexnum[pos][maxid], rems);
+		pair<double, double> AA = dfs(nexnum[pos] + maxid, rems);
 		win[pos] += AA.first;
 		searched[pos] += AA.second;
 		return AA;
@@ -435,7 +437,8 @@ pair<double, double> dfs(int pos, int rems) {
 			}
 		}
 		if (nex_f.size() != 0) {
-			for (int i = 0; i < nex_f.size(); i++) {
+			nexnum[pos] = StateCnt;
+			for (int i = 0; i < min(24, (int)nex_f.size()); i++) {
 				nex_zahyou[pos][i] = nex_f[i].first * 8 + nex_f[i].second;
 				Initialize(CandState[pos], pos, 3 - CandTurn[pos]);
 				Moves(CandState[StateCnt - 1], CandTurn[pos], (nex_zahyou[pos][i] >> 3), (nex_zahyou[pos][i] & 7));
@@ -454,6 +457,7 @@ pair<double, double> dfs(int pos, int rems) {
 				}
 			}
 			if (cnt2 != 0) {
+				nexnum[pos] = StateCnt;
 				nex_zahyou[pos][0] = -1;
 				Initialize(CandState[pos], pos, 3 - CandTurn[pos]);
 
@@ -474,38 +478,38 @@ pair<double, double> dfs(int pos, int rems) {
 
 void Main() {
 	// 機械学習データの入力
-	FILE* in = freopen("record.txt", "r", stdin);
+	FILE* in = freopen("record_new.txt", "r", stdin);
 	if (in == NULL) {
 		Situation = -1;
 	}
 	else {
-		for (int i = 0; i < 128; i++) {
-			for (int j = 0; j < 75; j++) {
+		for (int i = 0; i < STAGE1; i++) {
+			for (int j = 0; j < STAGE2; j++) {
 				string str = ""; while (str.size() <= 1) { cin >> str; }
 				d1[i][j] = StringToDouble(str);
 			}
 		}
-		for (int i = 0; i < 75; i++) {
+		for (int i = 0; i < STAGE2; i++) {
 			string str = ""; while (str.size() <= 1) { cin >> str; }
 			e1[i] = StringToDouble(str);
 		}
-		for (int i = 0; i < 75; i++) {
-			for (int j = 0; j < 30; j++) {
+		for (int i = 0; i < STAGE2; i++) {
+			for (int j = 0; j < STAGE3; j++) {
 				string str = ""; while (str.size() <= 1) { cin >> str; }
 				d2[i][j] = StringToDouble(str);
 			}
 		}
-		for (int i = 0; i < 30; i++) {
+		for (int i = 0; i < STAGE3; i++) {
 			string str = ""; while (str.size() <= 1) { cin >> str; }
 			e2[i] = StringToDouble(str);
 		}
-		for (int i = 0; i < 30; i++) {
-			for (int j = 0; j < 2; j++) {
+		for (int i = 0; i < STAGE3; i++) {
+			for (int j = 0; j < STAGE4; j++) {
 				string str = ""; while (str.size() <= 1) { cin >> str; }
 				d3[i][j] = StringToDouble(str);
 			}
 		}
-		for (int i = 0; i < 2; i++) {
+		for (int i = 0; i < STAGE4; i++) {
 			string str = ""; while (str.size() <= 1) { cin >> str; }
 			e3[i] = StringToDouble(str);
 		}
@@ -529,7 +533,7 @@ void Main() {
 
 		// [状態 0] 待ち受け画面
 		if (Situation == -1) {
-			font40(U"record.txt を").draw(280, 130);
+			font40(U"record_new.txt を").draw(280, 130);
 			font40(U"ダウンロードしてください").draw(160, 185);
 			font20(U"このファイルを .exe ファイルと同じ階層に置かなければ").draw(140, 350);
 			font20(U"ゲームで遊ぶことができません").draw(260, 380);
@@ -597,10 +601,10 @@ void Main() {
 				GetLastClick = Scene::Time();
 				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 1; BACKETS = 1; ALPHA = 10; }
 				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 7; BACKETS = 7; ALPHA = 70; }
-				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 30; BACKETS = 15; ALPHA = 300; }
-				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 100; BACKETS = 20; ALPHA = 1000; }
-				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 500; BACKETS = 20; ALPHA = 10000; }
-				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 2000; BACKETS = 25; ALPHA = 100000; }
+				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 30; BACKETS = 10; ALPHA = 300; }
+				if (MouseX >= 100.0 && MouseX <= 350.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 150; BACKETS = 15; ALPHA = 1000; }
+				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 700; BACKETS = 20; ALPHA = 10000; }
+				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 3000; BACKETS = 30; ALPHA = 100000; }
 				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 100000; BACKETS = 100; ALPHA = 4000000; }
 				if (MouseX >= 450.0 && MouseX <= 700.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 200000; BACKETS = 100; ALPHA = 15000000; }
 			}
@@ -860,7 +864,7 @@ void Main() {
 							int ti = clock(), lim = 3;
 							if (PLAYS == 200000) lim = 15;
 							while (clock() - ti < lim * CLOCKS_PER_SEC / 100) {
-								if (StateCnt >= 4000000 * (Ti - 3) / BACKETS) break;
+								if (StateCnt >= 9500000 * (Ti - 3) / BACKETS) break;
 								TansakuCnt += 1;
 								dfs(0, rems);
 							}
@@ -868,7 +872,7 @@ void Main() {
 						if (Ti == 3 + BACKETS) {
 							int minid_x = -1, minid_y = -1; double minx = 2.0;
 							for (int i = 0; i < deg[0]; i++) {
-								int idx = nexnum[0][i];
+								int idx = nexnum[0] + i;
 								double shouritsu = 1.0 * win[idx] / searched[idx];
 								if (minx > shouritsu) {
 									minx = shouritsu;
@@ -889,7 +893,7 @@ void Main() {
 								}
 								double minx2 = 2.0;
 								for (int i = 0; i < deg[0]; i++) {
-									int idx = nexnum[0][i];
+									int idx = nexnum[0] + i;
 									minx2 = min(minx2, 1.0 * win[idx] / searched[idx]);
 								}
 								Win_Rate = minx2;
