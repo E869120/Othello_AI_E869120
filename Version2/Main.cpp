@@ -712,44 +712,6 @@ vector<tuple<State, int, int, int, int>> fix_result(vector<tuple<State, int, int
 }
 
 void Main() {
-	// 機械学習データの入力
-	FILE* in = freopen("record_new.txt", "r", stdin);
-	if (in == NULL) {
-		Situation = -1;
-	}
-	else {
-		for (int i = 0; i < STAGE1; i++) {
-			for (int j = 0; j < STAGE2; j++) {
-				string str = ""; while (str.size() <= 1) { cin >> str; }
-				d1[i][j] = StringToDouble(str);
-			}
-		}
-		for (int i = 0; i < STAGE2; i++) {
-			string str = ""; while (str.size() <= 1) { cin >> str; }
-			e1[i] = StringToDouble(str);
-		}
-		for (int i = 0; i < STAGE2; i++) {
-			for (int j = 0; j < STAGE3; j++) {
-				string str = ""; while (str.size() <= 1) { cin >> str; }
-				d2[i][j] = StringToDouble(str);
-			}
-		}
-		for (int i = 0; i < STAGE3; i++) {
-			string str = ""; while (str.size() <= 1) { cin >> str; }
-			e2[i] = StringToDouble(str);
-		}
-		for (int i = 0; i < STAGE3; i++) {
-			for (int j = 0; j < STAGE4; j++) {
-				string str = ""; while (str.size() <= 1) { cin >> str; }
-				d3[i][j] = StringToDouble(str);
-			}
-		}
-		for (int i = 0; i < STAGE4; i++) {
-			string str = ""; while (str.size() <= 1) { cin >> str; }
-			e3[i] = StringToDouble(str);
-		}
-	}
-
 	// 背景を水色にする
 	srand((unsigned)time(NULL));
 	Scene::SetBackground(ColorF(0.0, 0.0, 0.1));
@@ -922,11 +884,11 @@ void Main() {
 					font20(U"後手のスコア").draw(580, 125);
 				}
 				if (BACKETS != -1) {
-					font20(U"黒番（自分）のスコア").draw(580, 15);
-					font20(U"白番（AI）のスコア").draw(580, 125);
+					font20(U"黒番（AI）のスコア").draw(580, 15);
+					font20(U"白番（自分）のスコア").draw(580, 125);
 				}
-				if (Next_Move == 1) Circle(569, 29, 5).draw(Color(255, 255, 0));
-				if (Next_Move == 2) Circle(569, 139, 5).draw(Color(255, 255, 0));
+				if (Next_Move == 2) Circle(569, 29, 5).draw(Color(255, 255, 0));
+				if (Next_Move == 1) Circle(569, 139, 5).draw(Color(255, 255, 0));
 				if (Score2 <= 9) font40(Score2).draw(755, 45);
 				if (Score2 >= 10) font40(Score2).draw(735, 45);
 				if (Score1 <= 9) font40(Score1).draw(755, 155);
