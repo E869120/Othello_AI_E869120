@@ -518,7 +518,7 @@ tuple<int, int, int> dfs3(State V, int OptEval, int turn) {
 		else {
 			int opt = -1; if (turn == 2) opt = 65;
 			tuple<int, int, int> res = dfs3(V, opt, 3 - turn);
-			return res;
+			return make_tuple(get<0>(res), -1, -1);
 		}
 	}
 	return next_move;
