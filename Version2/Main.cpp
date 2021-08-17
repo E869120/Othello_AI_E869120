@@ -199,7 +199,7 @@ int Moto1[1 << 16][8], Moto2[1 << 16][8];
 int pow4[9] = { 1, 4, 16, 64, 256, 1024, 4096, 16384, 65536 };
 
 // その他の変数
-int ALPHA = 1000;
+int ALPHA = 1000, ALPHA_GOAL = 1000, DEP_GOAL = 4;
 int PLAYS = 1000;
 int BACKETS = 50;
 const double TEISUU_A = 0.3;
@@ -221,6 +221,7 @@ bool IsAnalysis = false;
 int StateCnt = 0;
 int TansakuCnt = 0;
 int AlphaBeta = 0;
+int AlphaBeta_Best = 0;
 State CandState[MAX_STATES];
 short CandTurn[MAX_STATES]; float win[MAX_STATES], searched[MAX_STATES], tesuu[MAX_STATES];
 short deg[MAX_STATES]; char nex_zahyou[MAX_STATES][24]; int nexnum[MAX_STATES];
@@ -399,24 +400,50 @@ void Moves(State& V, int turn, int px, int py) {
 }
 
 // サボったαβ探索
-tuple<int, int, int> dfs2(State V, int turn) {
+tuple<int, int, int> dfs2(State V, int turn, int dep) {
 	// 0 : 分からない／-1: 負け／1: 引き分け／2: 勝ち
 	if (AlphaBeta > ALPHA) return make_tuple(0, -1, -1);
 
 	AlphaBeta += 1;
 	int seed = (rand() & 8191), cnt_moves = 0;
-
 	pair<int, int> hikiwake = make_pair(-1, -1);
-	for (int i = 0; i < 64; i++) {
-		int vx = (RandX[seed][i] >> 3), vy = (RandX[seed][i] & 7);
-		if (hantei_easy(V, turn, vx, vy) == true) {
+
+	if (dep <= DEP_GOAL && (dep & 1) == 0 && AlphaBeta_Best <= 100000) {
+		AlphaBeta_Best += 1;
+		vector<tuple<double, int, int>> nex_f;
+		for (int i = 0; i < 64; i++) {
+			int vx = (i >> 3), vy = (i & 7);
+			if (hantei_easy(V, turn, vx, vy) == true) {
+				State VV = V;
+				Moves(VV, turn, vx, vy);
+				nex_f.push_back(make_tuple(hantei(VV, 3 - turn), vx, vy));
+			}
+		}
+		sort(nex_f.begin(), nex_f.end());
+
+		for (int i = 0; i < nex_f.size(); i++) {
+			int vx = get<1>(nex_f[i]), vy = get<2>(nex_f[i]);
 			State VV = V;
 			Moves(VV, turn, vx, vy);
-			int res = get<0>(dfs2(VV, 3 - turn));
+			int res = get<0>(dfs2(VV, 3 - turn, dep + 1));
 			if (res == -1) return make_tuple(2, vx, vy);
 			if (res == 0) return make_tuple(0, -1, -1);
 			if (res == 1) hikiwake = make_pair(vx, vy);
 			cnt_moves += 1;
+		}
+	}
+	else {
+		for (int i = 0; i < 64; i++) {
+			int vx = (RandX[seed][i] >> 3), vy = (RandX[seed][i] & 7);
+			if (hantei_easy(V, turn, vx, vy) == true) {
+				State VV = V;
+				Moves(VV, turn, vx, vy);
+				int res = get<0>(dfs2(VV, 3 - turn, dep + 1));
+				if (res == -1) return make_tuple(2, vx, vy);
+				if (res == 0) return make_tuple(0, -1, -1);
+				if (res == 1) hikiwake = make_pair(vx, vy);
+				cnt_moves += 1;
+			}
 		}
 	}
 	if (hikiwake != make_pair(-1, -1)) {
@@ -465,7 +492,7 @@ tuple<int, int, int> dfs2(State V, int turn) {
 			return make_tuple(-1, -1, -1);
 		}
 		else {
-			tuple<int, int, int> res = dfs2(V, 3 - turn);
+			tuple<int, int, int> res = dfs2(V, 3 - turn, dep + 1);
 			if (get<0>(res) == -1) return make_tuple(2, -1, -1);
 			if (get<0>(res) == 1) return make_tuple(1, -1, -1);
 			if (get<0>(res) == 0) return make_tuple(0, -1, -1);
@@ -552,6 +579,11 @@ int Random_Playout(State V, int turn) {
 }
 
 double eval(int score, int rem) {
+	if (rem == 0) {
+		if (score > 32) return 1.0;
+		else if (score == 32) return 0.5;
+		else return 0.0;
+	}
 	double keisuu = 0.03 * rem;
 	return 1.0 / (1.0 + exp((32.0 - 1.0 * score) / keisuu));
 }
@@ -608,7 +640,7 @@ pair<double, double> dfs(int pos, int rems) {
 			}
 			double eval1 = (1.0 * win[idx] / searched[idx]); if (CandTurn[pos] == 2) eval1 = 1.0 - eval1;
 			double eval2 = sqrt(1.0 * log(1.0 * searched[pos]) / searched[idx]);
-			double evals = eval1 + TEISUU * eval2; if (PLAYS < 0) evals = (1.0 - eval1) + TEISUU * eval2;
+			double evals = eval1 + TEISUU * eval2; if (PLAYS < 0 && IsAnalysis == false) evals = (1.0 - eval1) + TEISUU * eval2;
 			if (maxn < evals) {
 				maxn = evals;
 				maxid = i;
@@ -759,7 +791,7 @@ void Main() {
 				GetLastClick = Scene::Time();
 				if (MouseX >= 200.0 && MouseX <= 600.0 && MouseY >= 250.0 && MouseY <= 315.0) { Next_Move = 1; Situation = 1; Sente = 1; Reset(); }
 				if (MouseX >= 200.0 && MouseX <= 600.0 && MouseY >= 330.0 && MouseY <= 395.0) { Next_Move = 2; Situation = 1; Sente = 2; Reset(); }
-				if (MouseX >= 200.0 && MouseX <= 600.0 && MouseY >= 410.0 && MouseY <= 475.0) { Next_Move = 1; Situation = 2; Sente = 1; Reset(); PLAYS = -1; BACKETS = -1; ALPHA = -1; }
+				if (MouseX >= 200.0 && MouseX <= 600.0 && MouseY >= 410.0 && MouseY <= 475.0) { Next_Move = 1; Situation = 2; Sente = 1; Reset(); PLAYS = 1; BACKETS = -1; ALPHA = -1; }
 			}
 		}
 
@@ -811,16 +843,16 @@ void Main() {
 
 			if (Scene::Time() - GetLastClick >= 0.1 && MouseL.down()) {
 				GetLastClick = Scene::Time();
-				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = -3000; BACKETS = 30; ALPHA = 100000; }
-				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 0; BACKETS = 1; ALPHA = -1; }
-				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 1; BACKETS = 1; ALPHA = 10; }
-				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 7; BACKETS = 7; ALPHA = 70; }
-				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 30; BACKETS = 10; ALPHA = 300; }
-				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 150; BACKETS = 15; ALPHA = 1000; }
-				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 700; BACKETS = 20; ALPHA = 10000; }
-				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 3000; BACKETS = 30; ALPHA = 100000; }
-				if (MouseX >= 520.0 && MouseX <= 720.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 100000; BACKETS = 100; ALPHA = 4000000; }
-				if (MouseX >= 520.0 && MouseX <= 720.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 200000; BACKETS = 100; ALPHA = 15000000; }
+				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = -3000; BACKETS = 30; ALPHA_GOAL = 100000; DEP_GOAL = -1; }
+				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 0; BACKETS = 1; ALPHA_GOAL = -1; DEP_GOAL = -1; }
+				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 1; BACKETS = 1; ALPHA_GOAL = 10; DEP_GOAL = -1; }
+				if (MouseX >= 80.0 && MouseX <= 280.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 7; BACKETS = 7; ALPHA_GOAL = 70; DEP_GOAL = 0; }
+				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 30; BACKETS = 10; ALPHA_GOAL = 300; DEP_GOAL = 0; }
+				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 150; BACKETS = 15; ALPHA_GOAL = 1500; DEP_GOAL = 2; }
+				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 350.0 && MouseY <= 420.0) { Situation = 2; PLAYS = 700; BACKETS = 20; ALPHA_GOAL = 25000; DEP_GOAL = 4; }
+				if (MouseX >= 300.0 && MouseX <= 500.0 && MouseY >= 440.0 && MouseY <= 510.0) { Situation = 2; PLAYS = 3000; BACKETS = 30; ALPHA_GOAL = 300000; DEP_GOAL = 6; }
+				if (MouseX >= 520.0 && MouseX <= 720.0 && MouseY >= 170.0 && MouseY <= 240.0) { Situation = 2; PLAYS = 100000; BACKETS = 100; ALPHA_GOAL = 5000000; DEP_GOAL = 8; }
+				if (MouseX >= 520.0 && MouseX <= 720.0 && MouseY >= 260.0 && MouseY <= 330.0) { Situation = 2; PLAYS = 200000; BACKETS = 100; ALPHA_GOAL = 20000000; DEP_GOAL = 10; }
 			}
 		}
 
@@ -1020,7 +1052,10 @@ void Main() {
 					StateCnt = 0;
 					TansakuCnt = 0;
 					AlphaBeta = 0;
+					AlphaBeta_Best = 0;
 					Initialize(CurrentState, -1, 2);
+					if (Score1 + Score2 <= 36) ALPHA = ALPHA_GOAL / 10;
+					else ALPHA = ALPHA_GOAL;
 				}
 				if (Ti == 3) {
 					// 画面表示
@@ -1029,7 +1064,7 @@ void Main() {
 					font40(U"しばらくお待ちください").draw(75, 230);
 
 					// α-β探索
-					tuple<int, int, int> res = dfs2(CurrentState, 2);
+					tuple<int, int, int> res = dfs2(CurrentState, 2, 0);
 					if (get<0>(res) >= 1) {
 						if (get<1>(res) == -1) {
 							FinalRes.push_back(make_tuple(CurrentState, Next_Move, -1, -1, Data.size()));
@@ -1107,6 +1142,13 @@ void Main() {
 						else if (TansakuCnt < 10000) font30(TansakuCnt).draw(358, 455);
 						else if (TansakuCnt < 100000) font30(TansakuCnt).draw(340, 455);
 						else font30(TansakuCnt).draw(322, 455);
+						font30(U"精査状態数").draw(150, 495);
+						if (AlphaBeta_Best < 10) font30(AlphaBeta_Best).draw(412, 495);
+						else if (AlphaBeta_Best < 100) font30(AlphaBeta_Best).draw(394, 495);
+						else if (AlphaBeta_Best < 1000) font30(AlphaBeta_Best).draw(376, 495);
+						else if (AlphaBeta_Best < 10000) font30(AlphaBeta_Best).draw(358, 495);
+						else if (AlphaBeta_Best < 100000) font30(AlphaBeta_Best).draw(340, 495);
+						else font30(AlphaBeta_Best).draw(322, 495);
 
 						// モンテカルロ木探索
 						Consecutive = 0;
